@@ -1,0 +1,233 @@
+#!/bin/bash
+
+#set -x
+
+#
+# Colors & Styles
+#
+COLOR_BLACK="\e[1m"
+COLOR_RED="\e[1;31m"
+COLOR_GREEN="\e[32m"
+COLOR_DARK_YELLOW="\e[33m"
+COLOR_MAGENTA="\e[1;35m"
+COLOR_PURPLE="\e[35m"
+COLOR_CYAN="\e[36m"
+COLOR_BLUE="\e[1;34m"
+COLOR_ORANGE="\e[31m"
+COLOR_GREY="\e[37m"
+#========================
+STYLE_OFF="\e[0m"
+STYLE_BOLD="\e[1m"
+STYLE_UNDERLINE="\e[4m"
+
+#========================================================= GLOBAL VARS START =========================================================
+
+#
+# Default working directory: ~/Lilu_Plugins_Beta
+#
+workDir="/Users/`users`/Desktop/Lilu_Plugins_Beta"
+
+#
+# Available kexts to be compiled. (currently only ones from acidanthera supported)
+#
+# Lilu is enforced to build either of them.
+#
+repoLilu="Lilu"
+repos=("${repoLilu}" "WhateverGreen" "AppleALC" "AirportBrcmFixup" "HibernationFixup")
+
+#
+# Possible schemes to build: Debug and Release
+#
+# You may change to Release *only* for normal use.
+#
+schemes=("Debug" "Release")
+
+#========================================================== GLOBAL VARS END ==========================================================
+
+function colorInfo() {
+  local color="$(echo ${1} | tr '[:upper:]' '[:lower:]')"
+  local msg="${2}"
+
+  case "${color}" in
+    "black" )
+      printf "%b%s%b\n" "${COLOR_BLACK}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "red" )
+      printf "%b%s%b\n" "${COLOR_RED}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "green" )
+      printf "%b%s%b\n" "${COLOR_GREEN}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "dark_yellow" )
+      printf "%b%s%b\n" "${COLOR_DARK_YELLOW}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "magenta" )
+      printf "%b%s%b\n" "${COLOR_MAGENTA}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "purple" )
+      printf "%b%s%b\n" "${COLOR_PURPLE}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "cyan" )
+      printf "%b%s%b\n" "${COLOR_CYAN}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "blue" )
+      printf "%b%s%b\n" "${COLOR_BLUE}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "orange" )
+      printf "%b%s%b\n" "${COLOR_ORANGE}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "grey" )
+      printf "%b%s%b\n" "${COLOR_ORANGE}" "${msg}" "${STYLE_OFF}"
+    ;;
+  esac
+}
+
+function styleInfo() {
+  local style="$(echo ${1} | tr '[:upper:]' '[:lower:]')"
+  local msg="${2}"
+
+  case "${style}" in
+    "bold" )
+      printf "%b%s%b\n" "${STYLE_BOLD}" "${msg}" "${STYLE_OFF}"
+    ;;
+
+    "underline" )
+      printf "%b%s%b\n" "${STYLE_UNDERLINE}" "${msg}" "${STYLE_OFF}"
+    ;;
+  esac
+}
+
+function printLine() {
+  echo  "-------------------------------------------------------------------------------"
+}
+
+function printStatus() {
+  [[ $? -eq 0 ]] && colorInfo green "Done..!" || colorInfo red "FAILED !!!"
+
+  printLine
+}
+
+function checkXcode() {
+  # FAILURE: Xcode not found
+  [[ ! -x /usr/bin/xcodebuild ]] && colorInfo red "Please install Xcode first!" && exit 1
+}
+
+function checkWorkDir(){
+  # delete the old one if exists
+  [[ -d "${workDir}" ]] && rm -rf "${workDir}"
+  # create a new one
+  mkdir "${workDir}"
+  # cd to it
+  cd "${workDir}"
+}
+
+function downloadSource() {
+  for src in "${repos[@]}"; do
+    styleInfo bold "***** Download ${src} Project *****"
+    # check if repos[0] is Lilu
+    # FAILURE: Lilu is not specified at repos[0]
+    [[ "${repos[0]}" != "Lilu" ]] && colorInfo red "Lilu is enforced!" && exit 2
+    # download source code
+    git clone "https://github.com/acidanthera/${src}"
+    printStatus
+  done
+}
+
+function buildKext() {
+  # always build Debug Lilu first
+  styleInfo bold "Building... Lilu Debug"
+  xcodebuild -project ./Lilu/Lilu.xcodeproj -configuration Debug &> /dev/null
+  printStatus
+
+  # copy Debug Lilu to each plugin
+  printLine
+  styleInfo bold "### Copying Lilu debug into lilu plugins project ###"
+  # loop for copying Debug Lilu
+  for plugin in "${repos[@]}"; do
+    # skip Lilu itself
+    [[ "${plugin}" == "Lilu" ]] && continue
+    # copy Debug Lilu to each plugin
+    cp -r ./Lilu/build/Debug/Lilu.kext "${plugin}"
+  done
+
+  # build Lilu and each plugin
+  for scheme in "${schemes[@]}"; do
+    for kext2Build in "${repos[@]}"; do
+      # skip building Debug Lilu, 
+      # since we have already done it from the very beginning
+      [[ "${scheme}" == "Debug" && "${kext2Build}" == "Lilu" ]] && continue
+
+      # build the rest thing
+      styleInfo bold "Building ${kext2Build} ${scheme}..."
+      xcodebuild -project "${kext2Build}/${kext2Build}.xcodeproj" -configuration "${scheme}" &> /dev/null
+      printStatus
+    done
+  done
+}
+
+function endProgram() {
+  for scheme in "${schemes[@]}"; do
+    # create directories for storing kexts
+    mkdir "${scheme}"
+
+    # move kexts to their corresponding location
+    for kext in "${repos[@]}"; do
+      kextName="${kext}/build/${scheme}/${kext}.kext"
+      kextDir="${scheme}/${kext}_${scheme}"
+
+      mkdir "${kextDir}"
+      mv "${kextName}" "${kextDir}"
+    done
+  done
+
+  # remove source code
+  for srcrm in "${repos[@]}"; do
+    rm -rf "${srcrm}"
+  done
+
+  # open working directory
+  open "${workDir}"
+}
+
+function showCredits() {
+  local credits=(
+    "vit9696" "vandroiy2013" "lvs1974" "PMheart"   "syscl"
+    "Toleda"  "Mirone"       "RemB"    "Floris497" "headkaze"
+    "igork"   "YuongRaj"
+  )
+
+  printLine
+
+  styleInfo bold "Project Credits:"
+  for (( i = 0; i < "${#credits[@]}"; i++ )); do
+    printf "%s" "${credits[i]}"
+    [[ $i -ne "$(expr ${#credits[@]} - 1)" ]] && printf ', ' || printf '.'
+
+    [[ $i -ne 0 && "$(expr $i % 5)" -eq 0 ]] && echo ""
+  done
+
+  echo "" && printLine
+}
+
+function main() {
+  clear
+
+  checkXcode
+  checkWorkDir
+  downloadSource
+  buildKext
+  endProgram
+
+  showCredits
+}
+
+main "$@"
