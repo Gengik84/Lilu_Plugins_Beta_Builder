@@ -11,7 +11,7 @@ Download project for Lilu and his plugins... and compile them
 ## How to use?
 Run the command below (will be downloaded to the current directory):
 ```
-curl -O https://raw.githubusercontent.com/Gengik84/Lilu_Beta_Plugins_Downloader/master/Lilu_Beta_Plugins_Downloader && chmod +x ./Lilu_Beta_Plugins_Downloader && bash ./Lilu_Beta_Plugins_Downloader
+curl -O https://raw.githubusercontent.com/Gengik84/Lilu_Plugins_Beta_Builder/master/Lilu_Plugins_Beta_Builder && chmod +x ./Lilu_Plugins_Beta_Builder && bash ./Lilu_Plugins_Beta_Builder
 ```
 
 ## Credits
