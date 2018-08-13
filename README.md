@@ -1,4 +1,4 @@
-# Lilu_Beta_Plugins_Downloader
+# Lilu_Plugins_Beta_Builder
 Download project for Lilu and his plugins... and compile them
 
 ## Now supported:
