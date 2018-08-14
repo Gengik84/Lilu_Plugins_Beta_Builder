@@ -111,7 +111,7 @@ function printLine() {
 }
 
 function printStatus() {
-  [[ $? -eq 0 ]] && colorInfo green "Done..!" || colorInfo red "FAILED !!!"
+  [[ $? -eq 0 ]] && colorInfo green "Done..!" || colorInfo red "FAILED !!!" && exit 255
 
   printLine
 }
