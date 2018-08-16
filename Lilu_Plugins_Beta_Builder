@@ -122,8 +122,17 @@ function printStatus() {
 }
 
 function checkXcode() {
-  # FAILURE: Xcode not found
-  [[ ! -x /usr/bin/xcodebuild ]] && colorInfo red "Please install Xcode first!" && exit 1
+  local xcodePath="/Applications/Xcode.app/Contents/Developer"
+  local xcodeBetaPath="/Applications/Xcode-beta.app/Contents/Developer"
+
+  case "$(xcode-select --print-path)" in
+    "${xcodePath}" | "${xcodeBetaPath}" ) ;;
+
+    * )
+      echo "Xcode not found, aborting"
+      exit 1
+    ;;
+  esac
 }
 
 function checkWorkDir(){
