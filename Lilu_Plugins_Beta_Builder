@@ -23,7 +23,7 @@ STYLE_UNDERLINE="\e[4m"
 #========================================================= GLOBAL VARS START =========================================================
 
 #
-# Default working directory: ~/Lilu_Plugins_Beta
+# Default working directory: ~/Desktop/Lilu_Plugins_Beta
 #
 workDir="/Users/`users`/Desktop/Lilu_Plugins_Beta"
 
@@ -33,7 +33,7 @@ workDir="/Users/`users`/Desktop/Lilu_Plugins_Beta"
 # Lilu is enforced to build either of them.
 #
 repoLilu="Lilu"
-repos=("${repoLilu}" "WhateverGreen" "AppleALC" "AirportBrcmFixup" "HibernationFixup")
+repos=("${repoLilu}" "AirportBrcmFixup" "AppleALC" "HibernationFixup" "VirtualSMC" "WhateverGreen")
 
 #
 # Possible schemes to build: Debug and Release
@@ -121,6 +121,14 @@ function printStatus() {
   printLine
 }
 
+# wrapper for checking everything
+function checkEnv() {
+  checkXcode
+  checkNasm
+  checkMtoc
+  checkWorkDir
+}
+
 function checkXcode() {
   local xcodePath="/Applications/Xcode.app/Contents/Developer"
   local xcodeBetaPath="/Applications/Xcode-beta.app/Contents/Developer"
@@ -134,6 +142,64 @@ function checkXcode() {
     ;;
   esac
 }
+
+# Check Nasm and Mtoc by vit9696 ( macbuild.tool )
+function checkNasm(){
+  local NASMVER="2.13.03"
+
+  if [ "$(nasm -v)" = "" ] || [ "$(nasm -v | grep Apple)" != "" ]; then
+    colorInfo magenta "Missing or incompatible nasm!"
+    colorInfo purple "Download the latest nasm from http://www.nasm.us/pub/nasm/releasebuilds/"
+    read -p "Last tested with nasm ${NASMVER}. Install it automatically? (y/N) " confirmInstallNasm 
+    case "${confirmInstallNasm}" in
+      y | Y | "" ) 
+        pushd /tmp >/dev/null
+        rm -rf "nasm-${NASMVER}-macosx.zip" "nasm-${NASMVER}"
+        colorInfo cyan "Download nasm..."
+        curl -OL "http://www.nasm.us/pub/nasm/releasebuilds/${NASMVER}/macosx/nasm-${NASMVER}-macosx.zip" || exit 1
+        unzip -q "nasm-${NASMVER}-macosx.zip" "nasm-${NASMVER}/nasm" "nasm-${NASMVER}/ndisasm" || exit 1
+        sudo mkdir -p /usr/local/bin || exit 1
+        sudo mv "nasm-${NASMVER}/nasm" /usr/local/bin/ || exit 1
+        sudo mv "nasm-${NASMVER}/ndisasm" /usr/local/bin/ || exit 1
+        rm -rf "nasm-${NASMVER}-macosx.zip" "nasm-${NASMVER}"
+        popd >/dev/null
+        printStatus
+      ;;
+
+      * )
+        echo -e "\nnasm installation Aborted.\n"
+        exit
+      ;;
+    esac
+  fi    
+}
+
+function checkMtoc(){
+  if [ "$(which mtoc.NEW)" = "" ] || [ "$(which mtoc)" = "" ]; then
+    colorInfo magenta  "Missing mtoc or mtoc.NEW!"
+    colorInfo purple "To build mtoc follow: https://github.com/tianocore/tianocore.github.io/wiki/Xcode#mac-os-x-xcode"
+    read -p "Install prebuilt mtoc and mtoc.NEW automatically? (Y/N) " confirmInstallMtoc
+    case "${confirmInstallMtoc}" in
+      y | Y | "" )
+        pushd /tmp >/dev/null
+        rm -f mtoc mtoc.NEW
+        colorInfo cyan "Download the latest Mtoc and install..."
+        curl -O "https://raw.githubusercontent.com/acidanthera/VirtualSMC/master/VirtualSmcPkg/External/mtoc-mac64.zip" || exit 1
+        unzip -q ./mtoc-mac64.zip mtoc.NEW || exit 1
+        sudo mkdir -p /usr/local/bin || exit 1
+        sudo cp mtoc.NEW /usr/local/bin/mtoc || exit 1
+        sudo mv mtoc.NEW /usr/local/bin/ || exit 1
+        popd >/dev/null
+        printStatus
+      ;;
+
+      * )
+        echo -e "\nmtoc installation Aborted.\n"
+        exit
+      ;;
+    esac
+  fi    
+}  
 
 function checkWorkDir(){
   # delete the old one if exists
@@ -154,6 +220,8 @@ function downloadSource() {
     git clone "https://github.com/acidanthera/${src}"
     printStatus
   done
+
+  clear
 }
 
 function buildKext() {
@@ -163,9 +231,6 @@ function buildKext() {
   printStatus
 
   # copy Debug Lilu to each plugin
-  printLine
-  styleInfo bold "### Copying Lilu debug into lilu plugins project ###"
-  # loop for copying Debug Lilu
   for plugin in "${repos[@]}"; do
     # skip Lilu itself
     [[ "${plugin}" == "Lilu" ]] && continue
@@ -182,6 +247,9 @@ function buildKext() {
 
       # build the rest thing
       styleInfo bold "Building ${kext2Build} ${scheme}..."
+      # prompt for VirtualSMC
+      [[ "${kext2Build}" == "VirtualSMC" ]] && colorInfo cyan "This may take a long while."
+      # build it
       xcodebuild -project "${kext2Build}/${kext2Build}.xcodeproj" -configuration "${scheme}" &> /dev/null
       printStatus
     done
@@ -203,8 +271,21 @@ function endProgram() {
     done
   done
 
+  # for VirtualSMC
+  mv "${workDir}"/VirtualSMC/build/Release/*.zip "${workDir}"/Release/VirtualSMC_Release
+  cd "${workDir}"/Release/VirtualSMC_Release
+  unzip *.zip &> /dev/null
+  rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
+
+  mv "${workDir}"/VirtualSMC/build/Debug/*.zip "${workDir}"/Debug/VirtualSMC_Debug
+  cd "${workDir}"/Debug/VirtualSMC_Debug
+  unzip *.zip &> /dev/null
+  rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
+  
+
   # remove source code
   for srcrm in "${repos[@]}"; do
+    cd "${workDir}"
     rm -rf "${srcrm}"
   done
 
@@ -214,8 +295,8 @@ function endProgram() {
 
 function showCredits() {
   local credits=(
-    "vit9696" "vandroiy2013" "lvs1974" "PMheart"   "syscl"
-    "Toleda"  "Mirone"       "RemB"    "Floris497" "headkaze"
+    "vit9696" "acidanthera" "vandroiy2013" "lvs1974"   "PMheart"   "syscl"
+    "Toleda"  "Mirone"      "RemB"         "Floris497" "headkaze"
     "igork"   "YuongRaj"
   )
 
@@ -224,19 +305,18 @@ function showCredits() {
   styleInfo bold "Project Credits:"
   for (( i = 0; i < "${#credits[@]}"; i++ )); do
     printf "%s" "${credits[i]}"
-    [[ $i -ne "$(expr ${#credits[@]} - 1)" ]] && printf ', ' || printf '.'
+    [[ $i -ne "$(expr ${#credits[@]} - 1)" ]] && printf ', ' || printf '.\n'
 
     [[ $i -ne 0 && "$(expr $i % 5)" -eq 0 ]] && echo ""
   done
 
-  echo "" && printLine
+  printLine
 }
 
 function main() {
   clear
 
-  checkXcode
-  checkWorkDir
+  checkEnv
   downloadSource
   buildKext
   endProgram
