@@ -271,16 +271,20 @@ function endProgram() {
     done
   done
 
-  # for VirtualSMC
-  mv "${workDir}"/VirtualSMC/build/Release/*.zip "${workDir}"/Release/VirtualSMC_Release
-  cd "${workDir}"/Release/VirtualSMC_Release
-  unzip *.zip &> /dev/null
-  rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
+  # for VirtualSMC (should not be hardcoded like this maybe)
+  for vsmc in "${repos[@]}"; do
+    if [[ "${vsmc}" == "VirtualSMC" ]]; then
+      mv "${workDir}"/VirtualSMC/build/Release/*.zip "${workDir}"/Release/VirtualSMC_Release
+      cd "${workDir}"/Release/VirtualSMC_Release
+      unzip *.zip &> /dev/null
+      rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
 
-  mv "${workDir}"/VirtualSMC/build/Debug/*.zip "${workDir}"/Debug/VirtualSMC_Debug
-  cd "${workDir}"/Debug/VirtualSMC_Debug
-  unzip *.zip &> /dev/null
-  rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
+      mv "${workDir}"/VirtualSMC/build/Debug/*.zip "${workDir}"/Debug/VirtualSMC_Debug
+      cd "${workDir}"/Debug/VirtualSMC_Debug
+      unzip *.zip &> /dev/null
+      rm -rf *.zip && rm -rf dSYM && rm -rf Tools && rm -rf *.kext
+    fi
+  done
   
 
   # remove source code
