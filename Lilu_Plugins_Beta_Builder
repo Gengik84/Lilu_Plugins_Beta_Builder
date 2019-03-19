@@ -245,10 +245,13 @@ function buildKext() {
       # since we have already done it from the very beginning
       [[ "${scheme}" == "Debug" && "${kext2Build}" == "Lilu" ]] && continue
 
+       [[ "${kext2Build}" == "VirtualSMC" ]] && continue
+
       # build the rest thing
       styleInfo bold "Building ${kext2Build} ${scheme}..."
       # prompt for VirtualSMC
-      [[ "${kext2Build}" == "VirtualSMC" ]] && colorInfo cyan "This may take a long while."
+     
+
       # build it
       xcodebuild -project "${kext2Build}/${kext2Build}.xcodeproj" -configuration "${scheme}" &> /dev/null
       printStatus
@@ -256,7 +259,24 @@ function buildKext() {
   done
 }
 
+function buildVirtualSMC(){
+  styleInfo bold "Prepair fot building VirtualSMC.."
+  cd  "${workDir}"/VirtualSMC/VirtualSmcPkg
+  colorInfo cyan "This may take a long while."
+  ./macbuild.tool &> /dev/null
+  printStatus
+  cd ..
+  styleInfo bold "Building VirtualSMC Debug..."
+  xcodebuild -project VirtualSMC.xcodeproj -configuration Debug &> /dev/null
+  printStatus
+  styleInfo bold "Building VirtualSMC Release..."
+  xcodebuild -project VirtualSMC.xcodeproj -configuration Release &> /dev/null
+  printStatus
+}
+
 function endProgram() {
+  cd  "${workDir}"
+
   for scheme in "${schemes[@]}"; do
     # create directories for storing kexts
     mkdir "${scheme}"
@@ -323,6 +343,7 @@ function main() {
   checkEnv
   downloadSource
   buildKext
+  buildVirtualSMC
   endProgram
 
   showCredits
